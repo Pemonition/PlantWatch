@@ -1,0 +1,65 @@
+## .NET
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+*.user
+*.suo
+*.userprefs
+*.dll
+*.pdb
+*.cache
+artifacts/
+publish/
+TestResults/
+coverage*.xml
+coverage*.json
+*.coverage
+*.trx
+project.lock.json
+project.assets.json
+.packages/
+BenchmarkDotNet.Artifacts/
+
+## NuGet
+*.nupkg
+*.snupkg
+packages/
+!packages/build/
+
+## Node / Angular (phase 2 dashboard under web/)
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+*.tsbuildinfo
+
+## IDEs and editors
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+*.sln.iml
+*.swp
+*~
+
+## OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## Local configuration and secrets
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+*.pfx
+*.p12
+secrets.json

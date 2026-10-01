@@ -1,0 +1,93 @@
+# PlantWatch full stack: broker, database, API and telemetry simulator.
+#
+#   docker compose up --build
+#
+# Everything needed to see the system working is here; no hardware and no manual
+# database setup. Credentials have development defaults and are overridable by
+# environment so the same file can be pointed at a real deployment.
+
+name: plantwatch
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: plantwatch-mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    healthcheck:
+      # mosquitto_sub exits non-zero if the broker is not accepting connections.
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -t '$$SYS/#' -C 1 -W 2 -i healthcheck || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  postgres:
+    image: postgres:16
+    container_name: plantwatch-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-plantwatch}
+      POSTGRES_USER: ${POSTGRES_USER:-plantwatch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-plantwatch}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-plantwatch} -d ${POSTGRES_DB:-plantwatch}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  api:
+    build:
+      # Context is the repository root: the API project references three sibling projects.
+      context: .
+      dockerfile: src/PlantWatch.Api/Dockerfile
+    container_name: plantwatch-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__PlantWatch: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-plantwatch};Username=${POSTGRES_USER:-plantwatch};Password=${POSTGRES_PASSWORD:-plantwatch}"
+      Mqtt__Host: mosquitto
+      Mqtt__Port: "1883"
+      Database__ApplyMigrationsOnStartup: "true"
+      Database__SeedDemoMachines: "true"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  simulator:
+    build:
+      context: .
+      dockerfile: tools/PlantWatch.Simulator/Dockerfile
+    container_name: plantwatch-simulator
+    restart: unless-stopped
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      api:
+        condition: service_started
+    environment:
+      MQTT_HOST: mosquitto
+      MQTT_PORT: "1883"
+      INTERVAL_SECONDS: "${SIMULATOR_INTERVAL_SECONDS:-5}"
+
+volumes:
+  postgres-data:
