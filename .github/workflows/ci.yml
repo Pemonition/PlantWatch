@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-test:
-    name: Build and test
+  backend:
+    name: Backend — build and test
     runs-on: ubuntu-latest
 
     steps:
@@ -31,3 +31,39 @@ jobs:
 
       - name: Test
         run: dotnet test PlantWatch.sln --configuration Release --no-build --verbosity normal
+
+  web:
+    name: Dashboard — lint, test and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # Angular 22 requires Node >= 22.22.3; `22.x` resolves to the latest 22 release, and
+      # package.json pins the floor in `engines` so a too-old local Node fails early.
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # Prettier in --check mode: the project has no bespoke lint rules worth maintaining, but
+      # a diff that is half-formatted is a diff nobody can review.
+      - name: Lint
+        run: npm run lint
+
+      # `ng test` runs Vitest against jsdom — no browser is downloaded and nothing needs a
+      # display, so this is headless by construction rather than by flag.
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build

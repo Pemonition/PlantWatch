@@ -29,7 +29,8 @@ flowchart LR
     end
 
     DB[("PostgreSQL 16<br/>machines · sensor_readings · stop_events")]
-    WEB["Angular dashboard<br/>(phase 2)"]
+    NGINX["nginx<br/>static bundle + /api, /hubs proxy"]
+    WEB["Angular dashboard<br/>(browser)"]
 
     PLC -->|"plantwatch/{code}/telemetry"| BROKER
     SIM -->|"plantwatch/{code}/telemetry"| BROKER
@@ -39,8 +40,10 @@ flowchart LR
     REST --> APP
     APP --> DOMAIN
     APP -->|repositories| DB
-    WEB -->|HTTP| REST
-    HUB -->|WebSocket| WEB
+    WEB -->|"HTTP /api"| NGINX
+    WEB -->|"WebSocket /hubs"| NGINX
+    NGINX --> REST
+    NGINX --> HUB
 ```
 
 The dependency direction is inward: `Api` → `Infrastructure` → `Application` → `Domain`, and
@@ -59,20 +62,27 @@ cd plantwatch
 docker compose up --build        # add -d to get your terminal back
 ```
 
-That starts four containers: the Mosquitto broker, PostgreSQL, the API (which applies its
-migrations and seeds three demo machines), and the simulator publishing telemetry for all three
-every five seconds. `docker compose ps` should show `mosquitto`, `postgres` and `api` as
-`healthy` within about a minute, and `simulator` as `running` — it has no health check because
-it exposes no port to probe.
+That starts five containers: the Mosquitto broker, PostgreSQL, the API (which applies its
+migrations and seeds three demo machines), the simulator publishing telemetry for all three
+every five seconds, and the Angular dashboard served by nginx. `docker compose ps` should show
+`mosquitto`, `postgres`, `api` and `web` as `healthy` within about a minute, and `simulator` as
+`running` — it has no health check because it exposes no port to probe.
 
 Then:
 
+- **Dashboard** — <http://localhost:8080> — the plant overview: one card per machine with its
+  OEE, the three factors behind it, and a live indicator that updates as telemetry arrives.
 - **Swagger UI** — <http://localhost:8080/swagger>
 - **Health** — <http://localhost:8080/health>
 - **Machines** — <http://localhost:8080/api/machines>
 - **Raw telemetry** — <http://localhost:8080/api/machines/PRESS-01/readings?take=20>
 - **OEE over the last five minutes** —
   `curl "http://localhost:8080/api/machines/PRESS-01/oee?from=$(date -u -d '-5 min' +%FT%TZ)&to=$(date -u +%FT%TZ)"`
+
+The dashboard container owns port 8080 and proxies `/api`, `/hubs`, `/health` and `/swagger` to
+the API over the compose network, so every URL above works through it and the browser never makes
+a cross-origin request. The API is also published directly on <http://localhost:5080> if you want
+it without the proxy.
 
 Give it two or three minutes of simulator output first. And pass `from`/`to` on a fresh stack:
 `/oee` with no window defaults to the last eight hours — one shift — so a container started five
@@ -95,10 +105,13 @@ Running from source instead, with only the infrastructure in Docker:
 docker compose up -d mosquitto postgres
 dotnet run --project src/PlantWatch.Api
 dotnet run --project tools/PlantWatch.Simulator   # in a second terminal
+cd web && npm ci && npm start                     # in a third, on http://localhost:4200
 ```
 
 The `Development` settings point at `localhost` for both the broker and the database, so this
-works with no further configuration.
+works with no further configuration. The dashboard's development environment file points at the
+API on :8080, which the API's existing CORS policy already allows — see
+[`web/README.md`](web/README.md).
 
 ## API
 
@@ -108,6 +121,7 @@ works with no further configuration.
 | `GET` | `/api/machines` | Lists monitored machines: code, name, ideal cycle time. |
 | `GET` | `/api/machines/{code}/oee?from=&to=` | Availability, performance, quality and OEE for a period, with the raw counters they were derived from. Defaults to the last 8 hours — one shift. Returns `404` for an unknown code. |
 | `GET` | `/api/machines/{code}/readings?take=` | Most recent telemetry samples, newest first. `take` defaults to 100 and is capped at 500. |
+| `GET` | `/` | The dashboard, served by nginx from the `web` container. |
 | `WS` | `/hubs/telemetry` | SignalR hub. Emits a `reading` event per ingested sample. A new connection receives every machine; `SubscribeToMachine(code)` narrows it to the machines asked for, and `UnsubscribeFromMachine(code)` on the last one returns it to the full stream. Each reading reaches a connection exactly once either way. |
 
 Telemetry is ingested from MQTT, not posted over HTTP. The topic and payload contract is
@@ -181,18 +195,22 @@ PlantWatch.sln
 ├── docs/
 │   ├── adr/                       Architecture decision records.
 │   └── learning-log.md            Where prior coursework is actually applied here.
-├── web/                           Angular dashboard — placeholder, phase 2.
-└── docker-compose.yml             Broker, database, API, simulator.
+├── web/                           Angular 22 dashboard: standalone components, signals,
+│                                  SignalR client, nginx Dockerfile. See web/README.md.
+└── docker-compose.yml             Broker, database, API, simulator, dashboard.
 ```
 
-Build and test locally with the .NET 9 SDK:
+Build and test locally with the .NET 9 SDK and Node 22.22.3 or newer:
 
 ```bash
 dotnet build
 dotnet test
+
+cd web && npm ci && npm test && npm run build
 ```
 
-CI runs restore, build and test on every push and pull request
+CI runs both halves on every push and pull request: restore/build/test for .NET, and
+install/lint/test/build for the dashboard, with the front-end tests running headless on jsdom
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 ## Roadmap
@@ -200,9 +218,12 @@ CI runs restore, build and test on every push and pull request
 **Phase 1 — telemetry and OEE (current).** MQTT ingestion, time-series storage, OEE over an
 arbitrary period, REST and realtime API, simulator, containerised stack.
 
-**Phase 2 — Angular dashboard.** Plant overview with live machine tiles, per-machine detail with
-the three factors charted over time, and a stop timeline. The API it consumes already exists and
-is documented in [`web/README.md`](web/README.md).
+**Phase 2 — Angular dashboard (current).** Plant overview with live machine cards, per-machine
+detail with a period selector and a production chart, realtime over SignalR, served same-origin
+behind nginx. Documented in [`web/README.md`](web/README.md); the choices behind it are in
+[ADR 0005](docs/adr/0005-dashboard-stack-and-delivery.md). The stop timeline is still outstanding
+— it needs `StopEvent` records derived from reading gaps, which the ingestion side does not
+produce yet.
 
 **Phase 3 — natural-language queries over telemetry.** "Which machine lost the most time last
 week, and to what?" translated into a bounded query over the same repositories, with the

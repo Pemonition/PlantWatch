@@ -1,0 +1,118 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pw-space-5);
+}
+
+/* --- Plant strip ---------------------------------------------------------
+ * The one figure a passer-by reads. It is given its own panel above the grid
+ * so that scanning the page top-to-bottom goes plant → machine → factor. */
+.plant {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pw-space-5);
+  padding: var(--pw-space-5);
+  background: var(--pw-surface);
+  border: 1px solid var(--pw-border);
+  border-radius: var(--pw-radius-lg);
+}
+
+.plant-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pw-space-4);
+}
+
+.plant-head h2 {
+  font-size: var(--pw-text-xl);
+  margin-block-start: var(--pw-space-1);
+}
+
+.counters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--pw-space-3);
+  margin: 0;
+  padding-block-start: var(--pw-space-4);
+  border-block-start: 1px solid var(--pw-border);
+}
+
+.counters dt {
+  font-size: var(--pw-text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pw-text-dim);
+}
+
+.counters dd {
+  margin: var(--pw-space-1) 0 0;
+  font-family: var(--pw-font-mono);
+  font-size: var(--pw-text-xl);
+  font-weight: 600;
+}
+
+/* --- Grid ----------------------------------------------------------------
+ * auto-fill with a 300px floor: one column on a phone, two on a tablet, three
+ * or four on a wall display, with no breakpoint doing the deciding. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: var(--pw-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.status {
+  margin: 0;
+  padding: var(--pw-space-6);
+  text-align: center;
+  color: var(--pw-text-muted);
+  background: var(--pw-surface);
+  border: 1px dashed var(--pw-border);
+  border-radius: var(--pw-radius-lg);
+}
+
+.status code {
+  font-family: var(--pw-font-mono);
+  font-size: var(--pw-text-sm);
+  color: var(--pw-text);
+}
+
+.banner {
+  margin: 0;
+  padding: var(--pw-space-3) var(--pw-space-4);
+  border: 1px solid var(--pw-poor);
+  border-inline-start-width: 4px;
+  border-radius: var(--pw-radius);
+  background: var(--pw-poor-dim);
+  color: var(--pw-text);
+  font-size: var(--pw-text-sm);
+}
+
+.notice {
+  margin: 0;
+  padding: var(--pw-space-3) var(--pw-space-4);
+  border: 1px solid var(--pw-border-strong);
+  border-inline-start: 4px solid var(--pw-fair);
+  border-radius: var(--pw-radius);
+  background: var(--pw-fair-dim);
+  color: var(--pw-text);
+  font-size: var(--pw-text-sm);
+  max-inline-size: 68ch;
+}
+
+@media (min-width: 760px) {
+  .plant-head {
+    flex-direction: row;
+    /* Centred, not bottom-aligned: the figure block is a line taller than the heading block, and
+       bottom-aligning them leaves a conspicuous hole above the heading. */
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .counters {
+    grid-template-columns: repeat(3, minmax(0, 12rem));
+  }
+}

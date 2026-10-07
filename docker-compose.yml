@@ -65,7 +65,10 @@ services:
       Database__ApplyMigrationsOnStartup: "true"
       Database__SeedDemoMachines: "true"
     ports:
-      - "8080:8080"
+      # The dashboard owns :8080 on the host and proxies to this service over the compose
+      # network, so the API is published on its own port only for direct access — curl, Swagger
+      # without the proxy, a second client. Nothing in the stack depends on it being published.
+      - "5080:8080"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
       interval: 10s
@@ -88,6 +91,30 @@ services:
       MQTT_HOST: mosquitto
       MQTT_PORT: "1883"
       INTERVAL_SECONDS: "${SIMULATOR_INTERVAL_SECONDS:-5}"
+
+  web:
+    # The Angular dashboard, built to static files and served by nginx, which also proxies
+    # /api, /hubs, /health and /swagger to the api service — so the browser only ever talks to
+    # one origin and CORS never enters the picture. See web/nginx.conf and ADR 0005.
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: plantwatch-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        # Healthy, not just started: nginx resolves `api` at startup when it parses the
+        # upstream block, and a container that is not up yet makes it exit with
+        # "host not found in upstream".
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
 volumes:
   postgres-data:

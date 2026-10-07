@@ -1,0 +1,99 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <a routerLink="/">Plant overview</a>
+  <span aria-hidden="true">/</span>
+  <span aria-current="page">{{ code() }}</span>
+</nav>
+
+<header class="head">
+  <div class="identity">
+    <p class="pw-eyebrow">Machine</p>
+    <h2>{{ machine()?.name ?? code() }}</h2>
+    <p class="meta">
+      <span class="code">{{ code() }}</span>
+      @if (machine(); as m) {
+        <span class="sep" aria-hidden="true">·</span>
+        <span>Ideal cycle {{ m.idealCycleSeconds }}s</span>
+      }
+    </p>
+  </div>
+
+  <div class="live">
+    <pw-status-dot [state]="state()" />
+    <p class="age">Last reading {{ age() }}</p>
+  </div>
+</header>
+
+<fieldset class="periods">
+  <legend class="pw-eyebrow">Reporting period</legend>
+  @for (option of periods; track option.id) {
+    <label class="period" [class.selected]="option.id === period().id">
+      <input
+        type="radio"
+        name="period"
+        [value]="option.id"
+        [checked]="option.id === period().id"
+        (change)="selectPeriod(option)"
+      />
+      <span>{{ option.label }}</span>
+    </label>
+  }
+</fieldset>
+
+@if (error(); as message) {
+  <p class="banner" role="alert">{{ message }}</p>
+}
+
+<div class="panels">
+  <section class="panel breakdown" aria-labelledby="breakdown-heading">
+    <h3 id="breakdown-heading" class="pw-sr-only">OEE breakdown</h3>
+
+    @if (oee(); as figures) {
+      <pw-oee-figure [ratio]="figures.oee" [caption]="'OEE — ' + period().label" size="lg" />
+
+      <div class="factors">
+        <pw-factor-bar label="Availability" [ratio]="figures.availability" />
+        <pw-factor-bar label="Performance" [ratio]="figures.performance" />
+        <pw-factor-bar label="Quality" [ratio]="figures.quality" />
+      </div>
+
+      @if (partialWindow()) {
+        <p class="notice">
+          This machine has telemetry for only part of the selected period. Availability is measured
+          against the whole period, so it reads low until the window fills.
+        </p>
+      }
+
+      <dl class="counters">
+        <div>
+          <dt>Pieces</dt>
+          <dd>{{ figures.totalPieces }}</dd>
+        </div>
+        <div>
+          <dt>Rejected</dt>
+          <dd>{{ figures.rejectedPieces }}</dd>
+        </div>
+        <div>
+          <dt>Run time</dt>
+          <dd>{{ runTime() }}</dd>
+        </div>
+        <div>
+          <dt>Planned</dt>
+          <dd>{{ plannedTime() }}</dd>
+        </div>
+      </dl>
+    } @else if (loading()) {
+      <p class="status">Loading OEE…</p>
+    } @else {
+      <p class="status">No OEE available for this period.</p>
+    }
+  </section>
+
+  <section class="panel chart" aria-labelledby="chart-heading">
+    <h3 id="chart-heading" class="pw-sr-only">Production over time</h3>
+    <pw-production-chart [samples]="samples()" title="Produced vs rejected" />
+    <p class="note">
+      Live sample feed, back-filled from the last {{ 500 }} readings the API will return and
+      extended as telemetry arrives. Shorter than the reporting period above on a busy line.
+    </p>
+  </section>
+</div>

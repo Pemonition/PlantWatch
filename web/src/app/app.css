@@ -1,0 +1,93 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100vh;
+  /* One content measure for every view, so the header, the grid and the footer line up. */
+  --pw-measure: 76rem;
+}
+
+.shell-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pw-space-3);
+  padding: var(--pw-space-3) var(--pw-space-4);
+  background: color-mix(in srgb, var(--pw-bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-block-end: 1px solid var(--pw-border);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pw-space-3);
+  color: var(--pw-accent);
+  border-radius: var(--pw-radius);
+}
+
+.mark {
+  flex: none;
+}
+
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.wordmark strong {
+  font-size: var(--pw-text-lg);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--pw-text);
+}
+
+.tagline {
+  font-size: var(--pw-text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pw-text-dim);
+}
+
+.shell-main {
+  flex: 1 1 auto;
+  inline-size: 100%;
+  max-inline-size: var(--pw-measure);
+  margin-inline: auto;
+  padding: var(--pw-space-5) var(--pw-space-4) var(--pw-space-7);
+}
+
+.shell-main:focus {
+  outline: none;
+}
+
+.shell-foot {
+  inline-size: 100%;
+  max-inline-size: var(--pw-measure);
+  margin-inline: auto;
+  padding: var(--pw-space-4) var(--pw-space-4) var(--pw-space-6);
+  border-block-start: 1px solid var(--pw-border);
+  color: var(--pw-text-dim);
+  font-size: var(--pw-text-xs);
+}
+
+.shell-foot p {
+  margin: 0;
+  max-inline-size: 56ch;
+}
+
+@media (min-width: 760px) {
+  .shell-head {
+    padding-inline: var(--pw-space-6);
+  }
+
+  .shell-main,
+  .shell-foot {
+    padding-inline: var(--pw-space-6);
+  }
+}

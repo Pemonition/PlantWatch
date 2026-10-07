@@ -1,0 +1,62 @@
+<section class="plant" aria-labelledby="plant-heading">
+  <div class="plant-head">
+    <div>
+      <p class="pw-eyebrow">Plant</p>
+      <h2 id="plant-heading">Line A — overall equipment effectiveness</h2>
+    </div>
+    <pw-oee-figure
+      [ratio]="plantOee()"
+      [caption]="'Plant OEE — last ' + windowMinutes + ' min'"
+      size="lg"
+    />
+  </div>
+
+  <dl class="counters">
+    <div>
+      <dt>Machines</dt>
+      <dd>{{ machines().length }}</dd>
+    </div>
+    <div>
+      <dt>Running</dt>
+      <dd>{{ runningCount() }}</dd>
+    </div>
+    <div>
+      <dt>Reporting</dt>
+      <dd>{{ reportingCount() }}</dd>
+    </div>
+  </dl>
+</section>
+
+@if (error(); as message) {
+  <p class="banner" role="alert">{{ message }}</p>
+}
+
+@if (partialWindow()) {
+  <p class="notice">
+    Every machine is reporting, but telemetry covers only part of the {{ windowMinutes }}-minute
+    window — availability is measured against the whole window, so these figures will rise as the
+    stack keeps collecting.
+  </p>
+}
+
+@if (loading()) {
+  <p class="status">Loading machines…</p>
+} @else if (machines().length === 0 && !error()) {
+  <p class="status">
+    No machines are registered. Publish telemetry on
+    <code>plantwatch/&#123;code&#125;/telemetry</code> and they will appear here.
+  </p>
+} @else {
+  <ul class="grid">
+    @for (machine of machines(); track machine.code) {
+      <li
+        pw-machine-card
+        [machine]="machine"
+        [live]="live()[machine.code]"
+        [oee]="oeeFor(machine.code)"
+        [now]="now()"
+        [windowMinutes]="windowMinutes"
+      ></li>
+    }
+  </ul>
+}

@@ -1,0 +1,224 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pw-space-5);
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--pw-space-2);
+  font-size: var(--pw-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pw-text-dim);
+}
+
+.crumbs a {
+  color: var(--pw-accent);
+  border-radius: var(--pw-radius);
+}
+
+.crumbs a:hover {
+  text-decoration: underline;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--pw-space-4);
+}
+
+.head h2 {
+  font-size: var(--pw-text-xl);
+  margin-block-start: var(--pw-space-1);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--pw-space-2);
+  margin: var(--pw-space-2) 0 0;
+  font-size: var(--pw-text-sm);
+  color: var(--pw-text-muted);
+}
+
+.code {
+  font-family: var(--pw-font-mono);
+  letter-spacing: 0.08em;
+  color: var(--pw-text);
+}
+
+.live {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--pw-space-2);
+}
+
+.age {
+  margin: 0;
+  font-family: var(--pw-font-mono);
+  font-size: var(--pw-text-xs);
+  color: var(--pw-text-dim);
+}
+
+/* --- Period selector -----------------------------------------------------
+ * Real radio inputs, visually hidden but focusable, so arrow keys work and
+ * the group is announced as a group. A row of buttons would have needed all
+ * of that reimplemented. */
+.periods {
+  /* Fit the options rather than stretching across a wide screen: a control that is mostly empty
+     reads as a container for something that failed to load. */
+  align-self: start;
+  max-inline-size: 100%;
+  /* A fieldset defaults to min-inline-size: min-content, which makes it refuse to shrink below
+     the width of its legend plus options and pushes a horizontal scrollbar onto the page at
+     phone widths. This is the fix, and it is not optional. */
+  min-inline-size: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pw-space-2);
+  margin: 0;
+  padding: var(--pw-space-3);
+  border: 1px solid var(--pw-border);
+  border-radius: var(--pw-radius-lg);
+  background: var(--pw-surface);
+}
+
+.periods legend {
+  padding-inline: var(--pw-space-2);
+}
+
+.period {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: var(--pw-space-2) var(--pw-space-4);
+  border: 1px solid var(--pw-border);
+  border-radius: var(--pw-radius);
+  background: var(--pw-surface-sunken);
+  color: var(--pw-text-muted);
+  font-size: var(--pw-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.period:hover {
+  color: var(--pw-text);
+  border-color: var(--pw-border-strong);
+}
+
+.period input {
+  position: absolute;
+  opacity: 0;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: 0;
+}
+
+.period:has(input:focus-visible) {
+  box-shadow: var(--pw-focus);
+}
+
+.period.selected {
+  background: var(--pw-accent-dim);
+  border-color: var(--pw-accent);
+  color: var(--pw-text);
+}
+
+.panels {
+  display: grid;
+  gap: var(--pw-space-4);
+}
+
+.panel {
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pw-space-5);
+  padding: var(--pw-space-5);
+  background: var(--pw-surface);
+  border: 1px solid var(--pw-border);
+  border-radius: var(--pw-radius-lg);
+}
+
+.factors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--pw-space-4);
+}
+
+.counters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--pw-space-4);
+  margin: 0;
+  padding-block-start: var(--pw-space-4);
+  border-block-start: 1px solid var(--pw-border);
+}
+
+.counters dt {
+  font-size: var(--pw-text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pw-text-dim);
+}
+
+.counters dd {
+  margin: var(--pw-space-1) 0 0;
+  font-family: var(--pw-font-mono);
+  font-size: var(--pw-text-lg);
+  font-weight: 600;
+}
+
+.notice {
+  margin: 0;
+  padding: var(--pw-space-3);
+  border: 1px solid var(--pw-border-strong);
+  border-inline-start: 4px solid var(--pw-fair);
+  border-radius: var(--pw-radius);
+  background: var(--pw-fair-dim);
+  font-size: var(--pw-text-sm);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--pw-text-xs);
+  color: var(--pw-text-dim);
+}
+
+.status {
+  margin: 0;
+  color: var(--pw-text-muted);
+}
+
+.banner {
+  margin: 0;
+  padding: var(--pw-space-3) var(--pw-space-4);
+  border: 1px solid var(--pw-poor);
+  border-inline-start-width: 4px;
+  border-radius: var(--pw-radius);
+  background: var(--pw-poor-dim);
+  font-size: var(--pw-text-sm);
+}
+
+@media (min-width: 900px) {
+  .panels {
+    grid-template-columns: minmax(0, 20rem) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .counters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

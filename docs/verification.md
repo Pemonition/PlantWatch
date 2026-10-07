@@ -213,3 +213,191 @@ Passed! - Failed: 0, Passed: 13, Skipped: 0, Total: 13
   is configured but was never triggered.
 - **Long-run behaviour.** The longest observation here is about eight minutes. Nothing is known
   about table growth, index bloat or memory over days.
+
+---
+
+# Phase 2 — the dashboard, end to end
+
+The section above verified that telemetry reaches a table and that the API answers. It says
+nothing about whether a browser can render any of it. This section records the first run that
+checked the dashboard itself: served from its own container, against the real stack, driven by a
+headless browser rather than by reading the code and assuming.
+
+Run on 2026-10-01, Linux x86-64, Docker 29.4.3, Docker Compose v5.1.3, .NET SDK 9.0, Node
+22.22.3, Angular 22.2. Every command was run from the repository root after
+`docker compose down -v`, so the database, the volume and the images all started from nothing.
+
+## 1. The dashboard builds and its tests pass
+
+```
+$ cd web && rm -rf node_modules dist .angular && npm ci
+added 285 packages ... found 0 vulnerabilities
+
+$ npm run lint
+Checking formatting...
+All matched files use Prettier code style!
+
+$ npm test
+ Test Files  3 passed (3)
+      Tests  35 passed (35)
+   Duration  1.41s
+
+$ npm run build
+Initial chunk files   | Names          |  Raw size | Estimated transfer size
+main-....js           | main           | 327.48 kB |                87.30 kB
+styles-....css        | styles         |   2.38 kB |               947 bytes
+                      | Initial total  | 329.86 kB |                88.24 kB
+Lazy chunk files      | machine-detail |  16.39 kB |                 4.77 kB
+                      | overview       |  10.41 kB |                 3.13 kB
+Application bundle generation complete.
+```
+
+The tests run on Vitest against jsdom. Nothing downloads a browser and nothing needs a display,
+so "headless" is a property of the setup rather than a flag that can be forgotten in CI.
+
+## 2. The whole stack comes up, including the dashboard
+
+```
+$ docker compose down -v && docker compose up -d --build
+ Container plantwatch-mosquitto  Healthy
+ Container plantwatch-postgres   Healthy
+ Container plantwatch-api        Healthy
+ Container plantwatch-simulator  Started
+ Container plantwatch-web        Started
+```
+
+Sixteen minutes later:
+
+```
+$ docker compose ps
+plantwatch-api        Up 14 minutes (healthy)
+plantwatch-mosquitto  Up 16 minutes (healthy)
+plantwatch-postgres   Up 16 minutes (healthy)
+plantwatch-simulator  Up 16 minutes
+plantwatch-web        Up 14 minutes (healthy)
+
+$ docker inspect --format '{{.Name}} restarts={{.RestartCount}}' <each>
+/plantwatch-api restarts=0   /plantwatch-web restarts=0   /plantwatch-postgres restarts=0
+/plantwatch-mosquitto restarts=0   /plantwatch-simulator restarts=0
+```
+
+Everything on one port, through the nginx proxy in the web container:
+
+```
+$ for u in / /api/machines /health /swagger/index.html; do curl -o /dev/null -w "$u %{http_code}\n" http://localhost:8080$u; done
+/                    200
+/api/machines        200
+/health              200
+/swagger/index.html  200
+```
+
+The WebSocket upgrade is the part a proxy usually breaks, so it was confirmed from nginx's own
+log rather than inferred from the page working:
+
+```
+$ docker compose logs web | grep hubs
+"POST /hubs/telemetry/negotiate?negotiateVersion=1 HTTP/1.1" 200 316
+"GET /hubs/telemetry?id=L0XTW-oabvqzNijSV19c0g HTTP/1.1" 101 538
+```
+
+`101 Switching Protocols`, not a 200 long-poll: the `Upgrade`/`Connection` forwarding in
+`web/nginx.conf` is doing its job. Without it the hub still works, by silently falling back to
+long polling — which is exactly why this was checked rather than assumed.
+
+## 3. A headless browser drives the real page
+
+Playwright/Chromium against `http://localhost:8080`, no mocks, with the simulator publishing.
+Fifteen assertions, all passing:
+
+```
+PASS  three machine cards render — found 3
+PASS  expected machine codes present — LATHE-02, PACK-03, PRESS-01
+PASS  every machine OEE is a non-zero number — 67, 84, 80
+PASS  SignalR connection reports live — LIVE FEED
+PASS  all machines report as live — Live, Live, Live
+PASS  readings arrive over the WebSocket while the page is open — 9 hub frames in 16s
+PASS  no machine ever went stale during the watch (continuous delivery) — worst observed age 4s
+PASS  the rendered cards visibly changed during the watch — card text differs before/after
+PASS  detail view shows an OEE figure — 19
+PASS  production chart draws columns from the REST back-fill — 25 rects
+PASS  chart grows on the per-machine subscription (pieces counted rise) — 23 -> 24 good pieces
+PASS  period selector requests a new from/to window
+      — /api/machines/LATHE-02/oee?from=2026-10-01T02:18:14Z&to=2026-10-01T10:18:14Z
+PASS  detail view has no horizontal overflow at 420px
+PASS  overview has no horizontal overflow at 420px
+PASS  no console or page errors
+```
+
+The realtime claim is deliberately asserted three ways, because "the page looks live" is the
+easiest thing in a dashboard to believe without evidence. Frames are counted off the WebSocket
+itself (nine `reading` frames in sixteen seconds — three machines on a five-second interval);
+the worst last-reading age observed across sixteen one-second samples was four seconds, so
+delivery was continuous rather than bursty; and the rendered card text differs before and after.
+On the detail view, the chart's piece total rises while the page is open, which exercises the
+per-machine subscription rather than the plant-wide one.
+
+The corresponding OEE from the API over the same window, for comparison with what the page
+showed:
+
+```
+$ curl "http://localhost:8080/api/machines/PACK-03/oee?from=...&to=..."
+{"availability":0.925,"performance":0.922,"quality":0.990,"oee":0.844,
+ "totalPieces":192,"rejectedPieces":2,"runTimeMinutes":13.88,"plannedTimeMinutes":15}
+```
+
+## 4. The screenshots were looked at, not just taken
+
+`docs/screenshots/` holds the overview and the detail view at 1280px and at 420px. Each was
+opened and read, and three things were wrong in the first pass and were fixed rather than
+shipped:
+
+| What the screenshot showed | Cause | Fix |
+| --- | --- | --- |
+| The detail view's production chart had a single column spanning the whole plot, over an eight-second span. | The live store's reducer dropped any reading older than the newest it held. By the time the detail view opened, the overview had been streaming for minutes, so the entire `GET /readings` back-fill was older than the newest sample and was discarded wholesale. | Replaced the append-only rule with an order-insensitive merge that de-duplicates by timestamp and re-sorts. Back-fill now fills in history underneath the live stream. Four new unit tests pin it. |
+| A horizontal scrollbar at 420px on the detail view — the page was 586px wide inside a 420px viewport. | The chart's visually hidden `<table>` carried the `.pw-sr-only` class directly, and a table ignores `width: 1px` when its content is wider, so it laid out at full width and pushed the page out. | Wrapped the table in a clipping `<div class="pw-sr-only">`. The div has no such behaviour. |
+| Every machine reading 10–17% and "Critical" two minutes after start-up. | Correct arithmetic: availability is run time over the *requested* window, and a stack up for two minutes has two minutes of run time against a fifteen-minute window. Nothing on the page said so. | Both views now detect that shape — every machine reporting, run time covering under 60% of the window — and say it in a banner. The detail view shows the same note per machine. |
+
+A fourth, smaller one: the banner's copy said "every machine is running" while the condition had
+been relaxed to "every machine is reporting", and a screenshot caught it saying so above a card
+reading *Stopped*.
+
+The overview at 1280px is the demo: plant OEE 77% on target, three cards at 67 / 84 / 80, each
+with its three factors, each live. At 420px the grid collapses to one column and nothing is lost.
+
+## 5. The back end still passes
+
+```
+$ dotnet build
+Build succeeded.  0 Warning(s)  0 Error(s)
+
+$ dotnet test
+Passed! - Failed: 0, Passed: 13, Skipped: 0, Total: 13
+```
+
+## Changes this verification forced
+
+| File | Why |
+| --- | --- |
+| `web/src/app/core/telemetry-store.ts` | Append-only reducer replaced with an order-insensitive, de-duplicating merge, so a REST back-fill under a live stream is not discarded. |
+| `web/src/app/ui/production-chart.ts` | Visually hidden table wrapped in a clipping div; it was forcing a horizontal scrollbar at phone widths. |
+| `web/src/app/features/overview/*`, `machine-detail/*` | Partial-window banner, so a cold start does not read as a plant in crisis; `min-inline-size: 0` on the period `<fieldset>`, which otherwise refuses to shrink below its content. |
+| `docker-compose.yml` | `web` service on :8080; the API's published port moved to :5080, since the dashboard now owns the one URL a reviewer needs. |
+
+## Not verified
+
+- **Reconnect behaviour was not exercised against a real outage.** The backoff policy is
+  unit-tested (never returns null, caps at thirty seconds) and the resubscribe path is written,
+  but no run killed the API under an open dashboard and watched it recover. That is the test
+  worth adding next, and it is the claim in `web/README.md` that currently rests on code review.
+- **Long-run behaviour.** The longest observation here is sixteen minutes. Nothing is known about
+  the page after a full shift: the sample buffer is bounded at 600 per machine, but memory,
+  re-render cost and WebSocket stability over eight hours are untested.
+- **Browsers other than Chromium.** One engine, headless. No Firefox, no Safari, no real phone.
+  The layout uses `:has()`, `color-mix()` and logical properties, all of which are widely
+  supported, but "widely supported" is not the same as "was run".
+- **The 24-hour period on the detail view** returns a correct OEE, but the chart beneath it draws
+  only the samples the page holds — a 500-reading back-fill is well under 24 hours. The view says
+  so; it has not been checked against a stack that has actually been up that long.
+- **Accessibility was built for, not audited.** Landmarks, focus rings, labelled controls,
+  non-colour status signals and a table equivalent for the chart are all present and were checked
+  by hand, but no screen reader was run and no automated axe pass was made.

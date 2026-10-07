@@ -1,0 +1,182 @@
+/*
+ * PlantWatch dashboard — design tokens and base layer.
+ *
+ * The target is a display mounted beside a production line, read at two to four metres by
+ * someone walking past, in a room with overhead fluorescent light and no control over glare.
+ * Everything below follows from that: a near-black ground so the numbers are the only bright
+ * thing, a small number of saturated status colours used only for status, and a type scale
+ * whose largest step is big enough to read across a bay.
+ *
+ * Dark-first is not a style preference here. A bright page on a wall display at night is a
+ * lamp, and the one thing a plant does not need is another lamp.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* --- Surfaces ---------------------------------------------------------
+   * Four steps, not a gradient ramp. Panels are distinguished by elevation
+   * and a single hairline border, which survives a cheap panel's contrast. */
+  --pw-bg: #080b0f;
+  --pw-surface: #10161e;
+  --pw-surface-raised: #17202b;
+  --pw-surface-sunken: #0b1016;
+  --pw-border: #243040;
+  --pw-border-strong: #35475c;
+
+  /* --- Text -------------------------------------------------------------
+   * --pw-text on --pw-surface is 15.8:1; --pw-text-muted is 5.6:1, above the
+   * 4.5:1 floor for body text. Nothing dimmer than muted is used for text. */
+  --pw-text: #eaf1f8;
+  --pw-text-muted: #93a6ba;
+  --pw-text-dim: #66788c;
+
+  /* --- Status -----------------------------------------------------------
+   * One hue per meaning, each paired with a dim variant for fills. These are
+   * never used decoratively, so a coloured thing on this page always means
+   * something. Every use is accompanied by a text label or a shape. */
+  --pw-good: #35d49a;
+  --pw-good-dim: rgba(53, 212, 154, 0.14);
+  --pw-fair: #f3b63f;
+  --pw-fair-dim: rgba(243, 182, 63, 0.14);
+  --pw-poor: #ff5d6c;
+  --pw-poor-dim: rgba(255, 93, 108, 0.14);
+  --pw-accent: #52a8ff;
+  --pw-accent-dim: rgba(82, 168, 255, 0.14);
+
+  /* --- Type -------------------------------------------------------------
+   * A 1.25 scale from 12px, with two display steps above it for the figures
+   * that have to carry across a room. */
+  --pw-font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --pw-font-mono:
+    ui-monospace, 'SFMono-Regular', 'JetBrains Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+
+  --pw-text-2xs: 0.6875rem; /* 11px — label eyebrows only */
+  --pw-text-xs: 0.75rem; /* 12px */
+  --pw-text-sm: 0.8125rem; /* 13px */
+  --pw-text-base: 0.9375rem; /* 15px */
+  --pw-text-lg: 1.125rem; /* 18px */
+  --pw-text-xl: 1.5rem; /* 24px */
+  --pw-display-sm: 2.25rem; /* 36px */
+  --pw-display: 3.5rem; /* 56px */
+  --pw-display-lg: 4.5rem; /* 72px */
+
+  /* --- Space ------------------------------------------------------------
+   * 4px base, doubling. Only these values are used anywhere. */
+  --pw-space-1: 0.25rem;
+  --pw-space-2: 0.5rem;
+  --pw-space-3: 0.75rem;
+  --pw-space-4: 1rem;
+  --pw-space-5: 1.5rem;
+  --pw-space-6: 2rem;
+  --pw-space-7: 3rem;
+
+  --pw-radius: 4px;
+  --pw-radius-lg: 8px;
+
+  --pw-focus: 0 0 0 2px var(--pw-bg), 0 0 0 4px var(--pw-accent);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--pw-bg);
+  color: var(--pw-text);
+  font-family: var(--pw-font-sans);
+  font-size: var(--pw-text-base);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  /* Numbers change every five seconds; proportional digits would make the whole
+   * layout twitch. Tabular figures everywhere, globally, on purpose. */
+  font-variant-numeric: tabular-nums;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* --- Focus ---------------------------------------------------------------
+ * A single, loud, always-visible focus ring. `:focus-visible` rather than
+ * `:focus` so a mouse click on a card does not leave a ring behind, but
+ * keyboard traversal is unmissable. */
+:where(a, button, select, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--pw-focus);
+  border-radius: var(--pw-radius);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* --- Shared primitives ---------------------------------------------------
+ * Used by more than one component, so they live here rather than being
+ * duplicated into component styles. */
+
+/* Small uppercase label above a figure. */
+.pw-eyebrow {
+  margin: 0;
+  font-size: var(--pw-text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pw-text-dim);
+}
+
+/* Visually hidden, still announced. Used for table captions and chart summaries. */
+.pw-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip link: first thing in the tab order, invisible until focused. */
+.pw-skip-link {
+  position: absolute;
+  left: var(--pw-space-4);
+  top: calc(-1 * var(--pw-space-7));
+  z-index: 10;
+  padding: var(--pw-space-2) var(--pw-space-4);
+  background: var(--pw-accent);
+  color: #04121f;
+  font-weight: 600;
+  border-radius: var(--pw-radius);
+  transition: top 120ms ease;
+}
+
+.pw-skip-link:focus {
+  top: var(--pw-space-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,36 @@
+<a class="pw-skip-link" href="#main">Skip to content</a>
+
+<header class="shell-head">
+  <a class="brand" routerLink="/">
+    <svg
+      class="mark"
+      viewBox="0 0 24 24"
+      width="26"
+      height="26"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="1.5" y="13" width="5" height="9" rx="1" fill="currentColor" opacity="0.45" />
+      <rect x="9.5" y="7" width="5" height="15" rx="1" fill="currentColor" opacity="0.75" />
+      <rect x="17.5" y="2" width="5" height="20" rx="1" fill="currentColor" />
+    </svg>
+    <span class="wordmark">
+      <strong>PlantWatch</strong>
+      <span class="tagline">Line monitor</span>
+    </span>
+  </a>
+
+  <pw-connection-badge />
+</header>
+
+<main id="main" class="shell-main" tabindex="-1">
+  <h1 class="pw-sr-only">PlantWatch line monitor</h1>
+  <router-outlet />
+</main>
+
+<footer class="shell-foot">
+  <p>
+    OEE = availability × performance × quality. Figures are computed by the API over the stated
+    period; telemetry arrives over MQTT and is pushed to this page over SignalR.
+  </p>
+</footer>

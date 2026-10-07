@@ -1,0 +1,9 @@
+# Keep the build context small and keep host artefacts out of the image: node_modules is
+# restored inside the build stage from the lockfile, and dist is produced there.
+node_modules
+dist
+.angular
+.git
+*.md
+Dockerfile
+.dockerignore
